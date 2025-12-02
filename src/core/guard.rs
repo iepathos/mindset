@@ -5,6 +5,7 @@
 
 use super::state::State;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// Pure predicate that determines if a transition can execute.
 ///
@@ -46,8 +47,17 @@ use std::marker::PhantomData;
 /// assert!(!can_transition.check(&TaskState::Complete));
 /// ```
 pub struct Guard<S: State> {
-    predicate: Box<dyn Fn(&S) -> bool + Send + Sync>,
+    predicate: Arc<dyn Fn(&S) -> bool + Send + Sync>,
     _phantom: PhantomData<S>,
+}
+
+impl<S: State> Clone for Guard<S> {
+    fn clone(&self) -> Self {
+        Guard {
+            predicate: Arc::clone(&self.predicate),
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<S: State> Guard<S> {
@@ -84,7 +94,7 @@ impl<S: State> Guard<S> {
         F: Fn(&S) -> bool + Send + Sync + 'static,
     {
         Guard {
-            predicate: Box::new(predicate),
+            predicate: Arc::new(predicate),
             _phantom: PhantomData,
         }
     }
