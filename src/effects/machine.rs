@@ -180,6 +180,7 @@ mod tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -205,6 +206,7 @@ mod tests {
             to: WorkflowState::Processing,
             guard: Some(guard),
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -234,6 +236,7 @@ mod tests {
                 })
                 .boxed()
             }),
+            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -279,6 +282,7 @@ mod tests {
                 })
                 .boxed()
             }),
+            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -308,6 +312,7 @@ mod tests {
                 })
                 .boxed()
             }),
+            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -371,6 +376,7 @@ mod integration_tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
         });
 
         // Processing -> Complete
@@ -379,6 +385,7 @@ mod integration_tests {
             to: WorkflowState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
+            enforcement: None,
         });
 
         let env = TestEnv {
