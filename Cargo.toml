@@ -1,0 +1,18 @@
+[package]
+name = "mindset"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mindset Contributors"]
+description = "A pure functional state machine library built on Stillwater's Effect system"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mindset-labs/mindset"
+keywords = ["state-machine", "functional", "effect", "workflow"]
+categories = ["data-structures"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+serde_json = "1.0"
+proptest = "1.4"
