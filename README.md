@@ -191,6 +191,107 @@ machine.transition_with_effect(State::A, State::B, |state, env| {
 
 Effects are explicit via environment parameter. Only pay for what you use.
 
+## Enforcement System
+
+Mindset includes a validation-based enforcement system that ensures state transitions comply with policies and constraints. Unlike traditional fail-fast error handling, the enforcement system accumulates ALL violations and reports them together, providing comprehensive feedback in a single evaluation.
+
+### Why Validation Over Result?
+
+Traditional `Result` types fail fast - they stop at the first error:
+
+```rust
+// With Result: Fix errors one at a time
+transition()?;  // Error: Max attempts exceeded
+// Fix attempts...
+transition()?;  // Error: Timeout exceeded (discovered only after fixing first)
+// Fix timeout...
+transition()?;  // Error: Custom check failed (discovered only after fixing second)
+```
+
+Mindset's `Validation`-based enforcement collects all violations:
+
+```rust
+// With Validation: See all errors at once
+transition();
+// Errors:
+//   - Max attempts exceeded (3 max, got 5)
+//   - Timeout exceeded (30s max, elapsed 45s)
+//   - Custom check failed: Resource unavailable
+// Fix everything in one pass
+```
+
+### Key Benefits
+
+1. **Complete Feedback**: Users see all violations simultaneously
+2. **Better UX**: No frustrating error-fix-error cycles
+3. **Stillwater Integration**: Built on proven functional patterns
+4. **Flexible Policies**: Combine built-in and custom checks
+
+### Basic Enforcement
+
+```rust
+use mindset::enforcement::{EnforcementBuilder, ViolationStrategy};
+use std::time::Duration;
+
+let rules = EnforcementBuilder::new()
+    .max_attempts(3)
+    .timeout(Duration::from_secs(30))
+    .on_violation(ViolationStrategy::Abort)
+    .build();
+```
+
+### Custom Enforcement Checks
+
+Add domain-specific validation:
+
+```rust
+let rules = EnforcementBuilder::new()
+    .max_attempts(5)
+    .require_pred(
+        |ctx| ctx.from.is_ready(),
+        "Source state must be ready".to_string()
+    )
+    .require_pred(
+        |ctx| !ctx.to.is_locked(),
+        "Target state is locked".to_string()
+    )
+    .on_violation(ViolationStrategy::Retry)
+    .build();
+```
+
+### Validation Semantics
+
+The enforcement system uses Stillwater's `Validation` type:
+
+- `Validation::Success(())` - All checks passed
+- `Validation::Failure(errors)` - Contains ALL violations (using `NonEmptyVec`)
+
+This guarantees that when validation fails, you get a non-empty list of all violations, not just the first one encountered.
+
+### Violation Strategies
+
+Control how violations are handled:
+
+- **Abort** (default): Fail transition permanently
+- **Retry**: Allow retry despite violations (for temporary issues)
+- **IgnoreAndLog**: Continue with warning (for non-critical checks)
+
+```rust
+// Critical safety check - abort on violation
+let rules = EnforcementBuilder::new()
+    .require_pred(|ctx| ctx.from.is_safe(), "Safety check failed".to_string())
+    .on_violation(ViolationStrategy::Abort)
+    .build();
+
+// Temporary resource issue - allow retry
+let rules = EnforcementBuilder::new()
+    .timeout(Duration::from_secs(30))
+    .on_violation(ViolationStrategy::Retry)
+    .build();
+```
+
+For comprehensive documentation on enforcement patterns, custom checks, and best practices, see the [Enforcement Guide](docs/enforcement.md).
+
 ## Usage Examples
 
 ### Example 1: Traffic Light
@@ -367,6 +468,7 @@ On a typical modern CPU:
 ## Documentation
 
 - [Effects Guide](docs/effects-guide.md): Comprehensive guide to effect patterns
+- [Enforcement Guide](docs/enforcement.md): Validation-based policy enforcement
 - [API Documentation](https://docs.rs/mindset): Generated API docs
 
 ## Design Philosophy
@@ -401,6 +503,7 @@ This library implements the effect-based state machine foundation as specified i
 
 - **Spec 001**: Core state machine with pure guards
 - **Spec 002**: Effect-based transitions with environment pattern
+- **Spec 003**: Validation-based enforcement system
 
 ## Contributing
 
