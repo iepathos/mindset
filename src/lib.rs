@@ -2,20 +2,24 @@
 //!
 //! Mindset is built on Stillwater's "pure core, imperative shell" philosophy.
 //! The core state machine logic is composed of pure functions with no side effects,
-//! while effects are isolated in Effect monads (to be introduced in a future spec).
+//! while effects are isolated in Effect monads using Stillwater 0.11.0.
 //!
 //! # Core Concepts
 //!
 //! - **State**: Type-safe state representation via the `State` trait
 //! - **Guards**: Pure predicate functions that control transitions
 //! - **History**: Immutable tracking of state transitions over time
+//! - **Effects**: Effectful state transitions using Stillwater's zero-cost effect system
 //!
 //! # Example
 //!
 //! ```rust
 //! use mindset::core::{State, StateHistory, StateTransition};
+//! use mindset::effects::{StateMachine, Transition, TransitionResult};
 //! use serde::{Deserialize, Serialize};
 //! use chrono::Utc;
+//! use stillwater::prelude::*;
+//! use std::sync::Arc;
 //!
 //! #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 //! enum WorkflowState {
@@ -38,17 +42,21 @@
 //!     }
 //! }
 //!
-//! let history = StateHistory::new();
-//! let transition = StateTransition {
+//! // Create a state machine with effectful transitions
+//! let mut machine: StateMachine<WorkflowState, ()> = StateMachine::new(WorkflowState::Initial);
+//!
+//! // Add a transition with an action factory
+//! machine.add_transition(Transition {
 //!     from: WorkflowState::Initial,
 //!     to: WorkflowState::Processing,
-//!     timestamp: Utc::now(),
-//!     attempt: 1,
-//! };
-//! let history = history.record(transition);
+//!     guard: None,
+//!     action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+//! });
 //! ```
 
 pub mod core;
+pub mod effects;
 
 // Re-export commonly used types
 pub use core::{Guard, State, StateHistory, StateTransition};
+pub use effects::{StateMachine, StepResult, Transition, TransitionError, TransitionResult};
