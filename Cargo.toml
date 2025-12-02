@@ -2,9 +2,9 @@
 name = "mindset"
 version = "0.1.0"
 edition = "2021"
-authors = ["Mindset Contributors"]
+authors = ["Glen Baker <iepathos@gmail.com>"]
 description = "A pure functional state machine library built on Stillwater's Effect system"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/iepathos/mindset"
 keywords = ["state-machine", "functional", "effect", "workflow"]
 categories = ["data-structures"]
