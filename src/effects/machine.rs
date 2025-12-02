@@ -279,7 +279,6 @@ mod tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -305,7 +304,6 @@ mod tests {
             to: WorkflowState::Processing,
             guard: Some(guard),
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -335,7 +333,6 @@ mod tests {
                 })
                 .boxed()
             }),
-            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -381,7 +378,6 @@ mod tests {
                 })
                 .boxed()
             }),
-            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -411,7 +407,6 @@ mod tests {
                 })
                 .boxed()
             }),
-            enforcement: None,
         };
 
         machine.add_transition(transition);
@@ -454,7 +449,6 @@ mod tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         });
 
         machine1.add_transition(Transition {
@@ -462,7 +456,6 @@ mod tests {
             to: WorkflowState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
-            enforcement: None,
         });
 
         // Execute some transitions
@@ -486,7 +479,6 @@ mod tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
                 }),
-                enforcement: None,
             },
             Transition {
                 from: WorkflowState::Processing,
@@ -495,7 +487,6 @@ mod tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
                 }),
-                enforcement: None,
             },
         ];
 
@@ -532,7 +523,6 @@ mod tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         });
 
         machine1.add_transition(Transition {
@@ -540,7 +530,6 @@ mod tests {
             to: WorkflowState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
-            enforcement: None,
         });
 
         // Execute first transition
@@ -560,7 +549,6 @@ mod tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
                 }),
-                enforcement: None,
             },
             Transition {
                 from: WorkflowState::Processing,
@@ -569,7 +557,6 @@ mod tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
                 }),
-                enforcement: None,
             },
         ];
         let mut machine2 = StateMachine::from_json(&json, transitions).unwrap();
@@ -648,7 +635,6 @@ mod integration_tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         });
 
         // Processing -> Complete
@@ -657,7 +643,6 @@ mod integration_tests {
             to: WorkflowState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
-            enforcement: None,
         });
 
         let env = TestEnv {
@@ -696,7 +681,6 @@ mod integration_tests {
             to: WorkflowState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
-            enforcement: None,
         });
 
         machine.add_transition(Transition {
@@ -704,7 +688,6 @@ mod integration_tests {
             to: WorkflowState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
-            enforcement: None,
         });
 
         // Execute first step
@@ -724,7 +707,6 @@ mod integration_tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
                 }),
-                enforcement: None,
             },
             Transition {
                 from: WorkflowState::Processing,
@@ -733,7 +715,6 @@ mod integration_tests {
                 action: Arc::new(|| {
                     pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
                 }),
-                enforcement: None,
             },
         ];
         let restored = StateMachine::from_json(&json, transitions).unwrap();

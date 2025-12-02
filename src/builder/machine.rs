@@ -129,7 +129,6 @@ mod tests {
             to: TestState::Processing,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(TestState::Processing)).boxed()),
-            enforcement: None,
         };
 
         let transition2: Transition<TestState, ()> = Transition {
@@ -137,7 +136,6 @@ mod tests {
             to: TestState::Complete,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(TestState::Complete)).boxed()),
-            enforcement: None,
         };
 
         let machine = StateMachineBuilder::new()
@@ -159,14 +157,12 @@ mod tests {
                 to: TestState::Processing,
                 guard: None,
                 action: Arc::new(|| pure(TransitionResult::Success(TestState::Processing)).boxed()),
-                enforcement: None,
             },
             Transition {
                 from: TestState::Processing,
                 to: TestState::Complete,
                 guard: None,
                 action: Arc::new(|| pure(TransitionResult::Success(TestState::Complete)).boxed()),
-                enforcement: None,
             },
         ];
 

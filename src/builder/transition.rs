@@ -3,7 +3,6 @@
 use crate::builder::error::BuildError;
 use crate::core::{Guard, State};
 use crate::effects::{Transition, TransitionError, TransitionResult};
-use crate::enforcement::EnforcementRules;
 use std::sync::Arc;
 use stillwater::effect::BoxedEffect;
 use stillwater::prelude::*;
@@ -18,7 +17,6 @@ pub struct TransitionBuilder<S: State, Env> {
     to: Option<S>,
     guard: Option<Guard<S>>,
     action: Option<ActionFactory<S, Env>>,
-    enforcement: Option<EnforcementRules<S>>,
 }
 
 impl<S: State + 'static, Env> TransitionBuilder<S, Env> {
@@ -29,7 +27,6 @@ impl<S: State + 'static, Env> TransitionBuilder<S, Env> {
             to: None,
             guard: None,
             action: None,
-            enforcement: None,
         }
     }
 
@@ -82,12 +79,6 @@ impl<S: State + 'static, Env> TransitionBuilder<S, Env> {
         self.action(move || pure(TransitionResult::Success(to.clone())).boxed())
     }
 
-    /// Add enforcement rules (optional).
-    pub fn enforce(mut self, rules: EnforcementRules<S>) -> Self {
-        self.enforcement = Some(rules);
-        self
-    }
-
     /// Build the transition.
     pub fn build(self) -> Result<Transition<S, Env>, BuildError> {
         let from = self.from.ok_or(BuildError::MissingFromState)?;
@@ -99,7 +90,6 @@ impl<S: State + 'static, Env> TransitionBuilder<S, Env> {
             to,
             guard: self.guard,
             action,
-            enforcement: self.enforcement,
         })
     }
 }

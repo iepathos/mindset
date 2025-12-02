@@ -1,7 +1,6 @@
 //! State transition types with effectful actions.
 
 use crate::core::{Guard, State};
-use crate::enforcement::EnforcementRules;
 use std::sync::Arc;
 use stillwater::effect::BoxedEffect;
 
@@ -45,7 +44,6 @@ pub struct Transition<S: State, Env> {
     pub to: S,
     pub guard: Option<Guard<S>>,
     pub action: TransitionAction<S, Env>,
-    pub enforcement: Option<EnforcementRules<S>>,
 }
 
 impl<S: State, Env> Transition<S, Env> {
@@ -68,7 +66,6 @@ impl<S: State, Env> Clone for Transition<S, Env> {
             to: self.to.clone(),
             guard: self.guard.clone(),
             action: Arc::clone(&self.action),
-            enforcement: None, // Enforcement is not cloneable due to boxed closures
         }
     }
 }
@@ -108,7 +105,6 @@ mod tests {
             to: TestState::Middle,
             guard: None,
             action: Arc::new(|| pure(TransitionResult::Success(TestState::Middle)).boxed()),
-            enforcement: None,
         };
 
         assert!(transition.can_execute(&TestState::Start));
@@ -124,7 +120,6 @@ mod tests {
             to: TestState::Start,
             guard: Some(guard),
             action: Arc::new(|| pure(TransitionResult::Success(TestState::Start)).boxed()),
-            enforcement: None,
         };
 
         // Should execute - End is final and guard passes
@@ -135,7 +130,6 @@ mod tests {
             to: TestState::Middle,
             guard: Some(Guard::new(|s: &TestState| s.is_final())),
             action: Arc::new(|| pure(TransitionResult::Success(TestState::Middle)).boxed()),
-            enforcement: None,
         };
 
         // Should not execute - Start is not final
