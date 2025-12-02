@@ -152,9 +152,8 @@ proptest! {
             history = history.record(transition);
         }
 
-        if let Some(duration) = history.duration() {
-            // Duration is always non-negative by type
-            prop_assert!(duration.as_nanos() >= 0);
+        if let Some(_duration) = history.duration() {
+            // Duration exists and is valid by type (always non-negative)
         }
     }
 
