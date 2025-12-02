@@ -9,7 +9,8 @@ use stillwater::effect::BoxedEffect;
 use stillwater::prelude::*;
 
 /// Type alias for transition action factories.
-type ActionFactory<S, Env> = Arc<dyn Fn() -> BoxedEffect<TransitionResult<S>, TransitionError, Env> + Send + Sync>;
+type ActionFactory<S, Env> =
+    Arc<dyn Fn() -> BoxedEffect<TransitionResult<S>, TransitionError, Env> + Send + Sync>;
 
 /// Builder for constructing transitions with a fluent API.
 pub struct TransitionBuilder<S: State, Env> {
