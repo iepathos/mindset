@@ -1,5 +1,6 @@
 //! State machine that executes effectful transitions.
 
+use crate::checkpoint::MachineMetadata;
 use crate::core::{State, StateHistory, StateTransition};
 use crate::effects::transition::{Transition, TransitionError, TransitionResult};
 use chrono::Utc;
@@ -21,20 +22,24 @@ pub enum StepResult<S: State> {
 
 /// State machine that executes effectful transitions.
 pub struct StateMachine<S: State + 'static, Env: Clone + Send + Sync + 'static> {
+    initial: S,
     current: S,
     transitions: Vec<Transition<S, Env>>,
     history: StateHistory<S>,
     attempt_count: usize,
+    metadata: MachineMetadata,
 }
 
 impl<S: State + 'static, Env: Clone + Send + Sync + 'static> StateMachine<S, Env> {
     /// Create a new state machine in the initial state
     pub fn new(initial: S) -> Self {
         Self {
+            initial: initial.clone(),
             current: initial,
             transitions: Vec::new(),
             history: StateHistory::new(),
             attempt_count: 0,
+            metadata: MachineMetadata::default(),
         }
     }
 
@@ -116,7 +121,7 @@ impl<S: State + 'static, Env: Clone + Send + Sync + 'static> StateMachine<S, Env
         match result {
             StepResult::Transitioned(new_state) => {
                 let transition_record = StateTransition {
-                    from: from_state,
+                    from: from_state.clone(),
                     to: new_state.clone(),
                     timestamp: Utc::now(),
                     attempt: attempt_count,
@@ -124,6 +129,7 @@ impl<S: State + 'static, Env: Clone + Send + Sync + 'static> StateMachine<S, Env
                 self.history = self.history.record(transition_record);
                 self.current = new_state;
                 self.attempt_count = 0;
+                self.update_metadata(from_state.name().to_string());
             }
             StepResult::Retry { .. } => {
                 self.attempt_count += 1;
@@ -132,6 +138,99 @@ impl<S: State + 'static, Env: Clone + Send + Sync + 'static> StateMachine<S, Env
                 self.current = error_state;
             }
         }
+    }
+
+    /// Update metadata after transition
+    fn update_metadata(&mut self, transition_name: String) {
+        self.metadata.updated_at = Utc::now();
+        *self
+            .metadata
+            .total_attempts
+            .entry(transition_name)
+            .or_insert(0) += 1;
+    }
+
+    /// Create a checkpoint of current machine state.
+    /// Pure function - does not modify machine.
+    pub fn checkpoint(&self) -> crate::checkpoint::Checkpoint<S> {
+        use crate::checkpoint::Checkpoint;
+        use uuid::Uuid;
+
+        Checkpoint {
+            version: crate::checkpoint::CHECKPOINT_VERSION,
+            id: Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
+            initial_state: self.initial.clone(),
+            current_state: self.current.clone(),
+            history: self.history.clone(),
+            metadata: self.metadata.clone(),
+        }
+    }
+
+    /// Serialize to JSON string
+    pub fn to_json(&self) -> Result<String, crate::checkpoint::CheckpointError> {
+        let checkpoint = self.checkpoint();
+        serde_json::to_string_pretty(&checkpoint)
+            .map_err(|e| crate::checkpoint::CheckpointError::SerializationFailed(e.to_string()))
+    }
+
+    /// Serialize to binary format
+    pub fn to_binary(&self) -> Result<Vec<u8>, crate::checkpoint::CheckpointError> {
+        let checkpoint = self.checkpoint();
+        bincode::serialize(&checkpoint)
+            .map_err(|e| crate::checkpoint::CheckpointError::SerializationFailed(e.to_string()))
+    }
+
+    /// Create state machine from checkpoint.
+    /// Transitions must be provided (not serializable).
+    pub fn from_checkpoint(
+        checkpoint: crate::checkpoint::Checkpoint<S>,
+        transitions: Vec<Transition<S, Env>>,
+    ) -> Result<Self, crate::checkpoint::CheckpointError> {
+        use crate::checkpoint::CHECKPOINT_VERSION;
+
+        // Validate version
+        if checkpoint.version > CHECKPOINT_VERSION {
+            return Err(crate::checkpoint::CheckpointError::UnsupportedVersion {
+                found: checkpoint.version,
+                supported: CHECKPOINT_VERSION,
+            });
+        }
+
+        Ok(Self {
+            initial: checkpoint.initial_state,
+            current: checkpoint.current_state,
+            transitions,
+            history: checkpoint.history,
+            attempt_count: 0,
+            metadata: checkpoint.metadata,
+        })
+    }
+
+    /// Deserialize from JSON string
+    pub fn from_json(
+        json: &str,
+        transitions: Vec<Transition<S, Env>>,
+    ) -> Result<Self, crate::checkpoint::CheckpointError> {
+        let checkpoint: crate::checkpoint::Checkpoint<S> =
+            serde_json::from_str(json).map_err(|e| {
+                crate::checkpoint::CheckpointError::DeserializationFailed(e.to_string())
+            })?;
+
+        Self::from_checkpoint(checkpoint, transitions)
+    }
+
+    /// Deserialize from binary format
+    pub fn from_binary(
+        bytes: &[u8],
+        transitions: Vec<Transition<S, Env>>,
+    ) -> Result<Self, crate::checkpoint::CheckpointError> {
+        let checkpoint: crate::checkpoint::Checkpoint<S> =
+            bincode::deserialize(bytes).map_err(|e| {
+                crate::checkpoint::CheckpointError::DeserializationFailed(e.to_string())
+            })?;
+
+        Self::from_checkpoint(checkpoint, transitions)
     }
 }
 
@@ -331,6 +430,179 @@ mod tests {
         machine.apply_result(from, result, attempt);
         assert_eq!(machine.current_state(), &WorkflowState::Failed);
     }
+
+    #[tokio::test]
+    async fn checkpoint_serializes_to_json() {
+        let machine = StateMachine::<WorkflowState, TestEnv>::new(WorkflowState::Initial);
+        let json = machine.to_json().unwrap();
+
+        // Verify it's valid JSON
+        assert!(serde_json::from_str::<serde_json::Value>(&json).is_ok());
+
+        // Verify contains expected fields
+        assert!(json.contains("version"));
+        assert!(json.contains("current_state"));
+        assert!(json.contains("history"));
+    }
+
+    #[tokio::test]
+    async fn checkpoint_roundtrip_preserves_state() {
+        let mut machine1 = StateMachine::new(WorkflowState::Initial);
+
+        machine1.add_transition(Transition {
+            from: WorkflowState::Initial,
+            to: WorkflowState::Processing,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
+        });
+
+        machine1.add_transition(Transition {
+            from: WorkflowState::Processing,
+            to: WorkflowState::Complete,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
+            enforcement: None,
+        });
+
+        // Execute some transitions
+        let env = TestEnv {
+            _should_succeed: true,
+        };
+        let (from, result, attempt) = machine1.step().run(&env).await.unwrap();
+        machine1.apply_result(from, result, attempt);
+
+        let (from2, result2, attempt2) = machine1.step().run(&env).await.unwrap();
+        machine1.apply_result(from2, result2, attempt2);
+
+        // Checkpoint and restore
+        let json = machine1.to_json().unwrap();
+
+        let transitions: Vec<Transition<WorkflowState, TestEnv>> = vec![
+            Transition {
+                from: WorkflowState::Initial,
+                to: WorkflowState::Processing,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
+                }),
+                enforcement: None,
+            },
+            Transition {
+                from: WorkflowState::Processing,
+                to: WorkflowState::Complete,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
+                }),
+                enforcement: None,
+            },
+        ];
+
+        let machine2 = StateMachine::from_json(&json, transitions).unwrap();
+
+        // Verify state preserved
+        assert_eq!(machine1.current_state(), machine2.current_state());
+        assert_eq!(
+            machine1.history().transitions().len(),
+            machine2.history().transitions().len()
+        );
+    }
+
+    #[test]
+    fn binary_format_smaller_than_json() {
+        let machine = StateMachine::<WorkflowState, TestEnv>::new(WorkflowState::Initial);
+
+        let json = machine.to_json().unwrap();
+        let binary = machine.to_binary().unwrap();
+
+        // Binary should be significantly smaller
+        assert!(binary.len() < json.len() / 2);
+    }
+
+    #[tokio::test]
+    async fn resumed_machine_can_continue_execution() {
+        let mut machine1 = StateMachine::new(WorkflowState::Initial);
+        let env = TestEnv {
+            _should_succeed: true,
+        };
+
+        machine1.add_transition(Transition {
+            from: WorkflowState::Initial,
+            to: WorkflowState::Processing,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
+        });
+
+        machine1.add_transition(Transition {
+            from: WorkflowState::Processing,
+            to: WorkflowState::Complete,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
+            enforcement: None,
+        });
+
+        // Execute first transition
+        let (from, result, attempt) = machine1.step().run(&env).await.unwrap();
+        machine1.apply_result(from, result, attempt);
+        assert_eq!(machine1.current_state(), &WorkflowState::Processing);
+
+        // Checkpoint
+        let json = machine1.to_json().unwrap();
+
+        // Resume
+        let transitions: Vec<Transition<WorkflowState, TestEnv>> = vec![
+            Transition {
+                from: WorkflowState::Initial,
+                to: WorkflowState::Processing,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
+                }),
+                enforcement: None,
+            },
+            Transition {
+                from: WorkflowState::Processing,
+                to: WorkflowState::Complete,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
+                }),
+                enforcement: None,
+            },
+        ];
+        let mut machine2 = StateMachine::from_json(&json, transitions).unwrap();
+
+        // Should be able to continue from where we left off
+        let (from2, result2, attempt2) = machine2.step().run(&env).await.unwrap();
+        machine2.apply_result(from2, result2, attempt2);
+        assert_eq!(machine2.current_state(), &WorkflowState::Complete);
+    }
+
+    #[test]
+    fn unsupported_version_returns_error() {
+        use crate::checkpoint::Checkpoint;
+        use uuid::Uuid;
+
+        let checkpoint = Checkpoint {
+            version: 999,
+            id: Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
+            initial_state: WorkflowState::Initial,
+            current_state: WorkflowState::Initial,
+            history: crate::core::StateHistory::new(),
+            metadata: crate::checkpoint::MachineMetadata::default(),
+        };
+
+        let json = serde_json::to_string(&checkpoint).unwrap();
+        let result = StateMachine::<WorkflowState, TestEnv>::from_json(&json, vec![]);
+
+        assert!(matches!(
+            result,
+            Err(crate::checkpoint::CheckpointError::UnsupportedVersion { .. })
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -409,5 +681,71 @@ mod integration_tests {
         assert_eq!(path[0], &WorkflowState::Initial);
         assert_eq!(path[1], &WorkflowState::Processing);
         assert_eq!(path[2], &WorkflowState::Complete);
+    }
+
+    #[tokio::test]
+    async fn checkpoint_resume_preserves_history() {
+        let mut machine = StateMachine::new(WorkflowState::Initial);
+        let env = TestEnv {
+            _should_succeed: true,
+        };
+
+        // Add all transitions
+        machine.add_transition(Transition {
+            from: WorkflowState::Initial,
+            to: WorkflowState::Processing,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Processing)).boxed()),
+            enforcement: None,
+        });
+
+        machine.add_transition(Transition {
+            from: WorkflowState::Processing,
+            to: WorkflowState::Complete,
+            guard: None,
+            action: Arc::new(|| pure(TransitionResult::Success(WorkflowState::Complete)).boxed()),
+            enforcement: None,
+        });
+
+        // Execute first step
+        let (from, result, attempt) = machine.step().run(&env).await.unwrap();
+        machine.apply_result(from, result, attempt);
+
+        // Save original history
+        let original_history = machine.history().transitions().to_vec();
+
+        // Checkpoint and resume
+        let json = machine.to_json().unwrap();
+        let transitions: Vec<Transition<WorkflowState, TestEnv>> = vec![
+            Transition {
+                from: WorkflowState::Initial,
+                to: WorkflowState::Processing,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Processing)).boxed()
+                }),
+                enforcement: None,
+            },
+            Transition {
+                from: WorkflowState::Processing,
+                to: WorkflowState::Complete,
+                guard: None,
+                action: Arc::new(|| {
+                    pure(TransitionResult::Success(WorkflowState::Complete)).boxed()
+                }),
+                enforcement: None,
+            },
+        ];
+        let restored = StateMachine::from_json(&json, transitions).unwrap();
+
+        let restored_history = restored.history().transitions();
+
+        // History should be identical
+        assert_eq!(original_history.len(), restored_history.len());
+        for (orig, restored) in original_history.iter().zip(restored_history.iter()) {
+            assert_eq!(orig.from, restored.from);
+            assert_eq!(orig.to, restored.to);
+            assert_eq!(orig.attempt, restored.attempt);
+        }
     }
 }
