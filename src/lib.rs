@@ -55,12 +55,14 @@
 //! });
 //! ```
 
+pub mod builder;
 pub mod checkpoint;
 pub mod core;
 pub mod effects;
 pub mod enforcement;
 
 // Re-export commonly used types
+pub use builder::{BuildError, StateMachineBuilder, TransitionBuilder};
 pub use checkpoint::{Checkpoint, CheckpointError, MachineMetadata, CHECKPOINT_VERSION};
 pub use core::{Guard, State, StateHistory, StateTransition};
 pub use effects::{StateMachine, StepResult, Transition, TransitionError, TransitionResult};

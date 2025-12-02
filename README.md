@@ -36,19 +36,30 @@ enum ConnectionState {
 impl State for ConnectionState {}
 
 fn main() {
-    let machine = StateMachine::builder()
-        .state(ConnectionState::Disconnected)
-        .state(ConnectionState::Connecting)
-        .state(ConnectionState::Connected)
-        .transition(
-            ConnectionState::Disconnected,
-            ConnectionState::Connecting,
-            |_state| true
+    use mindset::builder::{StateMachineBuilder, TransitionBuilder};
+
+    let machine = StateMachineBuilder::new()
+        .initial(ConnectionState::Disconnected)
+        .add_transition(
+            TransitionBuilder::new()
+                .from(ConnectionState::Disconnected)
+                .to(ConnectionState::Connecting)
+                .succeeds()
+                .build()
+                .unwrap()
         )
-        .build();
+        .add_transition(
+            TransitionBuilder::new()
+                .from(ConnectionState::Connecting)
+                .to(ConnectionState::Connected)
+                .succeeds()
+                .build()
+                .unwrap()
+        )
+        .build()
+        .unwrap();
 
     // Zero-cost transitions - compiles to direct state updates
-    machine.transition(ConnectionState::Disconnected, ConnectionState::Connecting);
 }
 ```
 
@@ -97,26 +108,30 @@ where
 }
 
 fn main() {
-    let machine = StateMachine::builder()
-        .state(OrderState::Draft)
-        .state(OrderState::Submitted)
-        .transition_with_effect(
-            OrderState::Draft,
-            OrderState::Submitted,
-            |order, env| {
-                if can_submit(order) {
-                    submit_order(order, env)
-                } else {
-                    Err("Invalid order".to_string())
-                }
-            }
-        )
-        .build();
+    use mindset::builder::{StateMachineBuilder, TransitionBuilder};
 
-    // Execute with environment
-    let mut order = Order { id: 123, total: 99.99 };
-    let mut env = ProductionEnv::new();
-    machine.transition(&mut order, &mut env).unwrap();
+    let machine = StateMachineBuilder::new()
+        .initial(OrderState::Draft)
+        .add_transition(
+            TransitionBuilder::new()
+                .from(OrderState::Draft)
+                .to(OrderState::Submitted)
+                .succeeds()
+                .build()
+                .unwrap()
+        )
+        .add_transition(
+            TransitionBuilder::new()
+                .from(OrderState::Submitted)
+                .to(OrderState::Processing)
+                .succeeds()
+                .build()
+                .unwrap()
+        )
+        .build()
+        .unwrap();
+
+    // For custom effectful actions, see the Builder Guide
 }
 ```
 
@@ -297,56 +312,68 @@ For comprehensive documentation on enforcement patterns, custom checks, and best
 ### Example 1: Traffic Light
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum TrafficLight {
-    Red,
-    Yellow,
-    Green,
+use mindset::state_enum;
+use mindset::builder::{StateMachineBuilder, simple_transition};
+
+state_enum! {
+    enum TrafficLight {
+        Red,
+        Yellow,
+        Green,
+    }
 }
 
-impl State for TrafficLight {}
-
-let machine = StateMachine::builder()
-    .state(TrafficLight::Red)
-    .state(TrafficLight::Yellow)
-    .state(TrafficLight::Green)
-    .transition(TrafficLight::Red, TrafficLight::Green, |_| true)
-    .transition(TrafficLight::Green, TrafficLight::Yellow, |_| true)
-    .transition(TrafficLight::Yellow, TrafficLight::Red, |_| true)
-    .build();
+let machine = StateMachineBuilder::new()
+    .initial(TrafficLight::Red)
+    .transitions(vec![
+        simple_transition(TrafficLight::Red, TrafficLight::Green),
+        simple_transition(TrafficLight::Green, TrafficLight::Yellow),
+        simple_transition(TrafficLight::Yellow, TrafficLight::Red),
+    ])
+    .build()
+    .unwrap();
 ```
 
 ### Example 2: Document Workflow with Logging
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum DocState {
-    Draft,
-    Review,
-    Approved,
-    Published,
-}
+use mindset::state_enum;
+use mindset::builder::{StateMachineBuilder, TransitionBuilder};
 
-impl State for DocState {}
+state_enum! {
+    enum DocState {
+        Draft,
+        Review,
+        Approved,
+        Published,
+    }
+    final: [Published]
+}
 
 trait AuditLog {
     fn log_transition(&mut self, from: DocState, to: DocState);
 }
 
-let machine = StateMachine::builder()
-    .state(DocState::Draft)
-    .state(DocState::Review)
-    .state(DocState::Approved)
-    .state(DocState::Published)
-    .transition_with_effect(
-        DocState::Draft,
-        DocState::Review,
-        |_, env: &mut impl AuditLog| {
-            env.log_transition(DocState::Draft, DocState::Review);
-            Ok(())
-        }
+let machine = StateMachineBuilder::new()
+    .initial(DocState::Draft)
+    .add_transition(
+        TransitionBuilder::new()
+            .from(DocState::Draft)
+            .to(DocState::Review)
+            .succeeds()
+            .build()
+            .unwrap()
     )
-    .build();
+    .add_transition(
+        TransitionBuilder::new()
+            .from(DocState::Review)
+            .to(DocState::Approved)
+            .succeeds()
+            .build()
+            .unwrap()
+    )
+    .build()
+    .unwrap();
 ```
 
 ### Example 3: State Machine with Validation
@@ -507,6 +534,7 @@ For detailed documentation on checkpoint structure, resume behavior, best practi
 
 ## Documentation
 
+- [Builder Guide](docs/builder-guide.md): Comprehensive guide to the builder API with examples and patterns
 - [Checkpointing Guide](docs/checkpointing.md): Checkpoint and resume for long-running workflows
 - [Effects Guide](docs/effects-guide.md): Comprehensive guide to effect patterns
 - [Enforcement Guide](docs/enforcement.md): Validation-based policy enforcement
