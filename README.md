@@ -465,8 +465,49 @@ On a typical modern CPU:
 - Single-effect transition: ~2-3ns (includes function call overhead)
 - Multi-effect transition: ~5-10ns (depends on effect complexity)
 
+## Checkpoint and Resume
+
+Mindset includes built-in checkpoint and resume functionality for long-running MapReduce workflows. This allows workflows to be paused and resumed without losing progress, making the system resilient to interruptions.
+
+### Key Features
+
+- **Automatic Checkpointing**: Workflows automatically save progress at key phases (map completion, reduce rounds)
+- **Serialization Formats**: Support for both JSON (human-readable) and binary (compact) formats
+- **Atomic Writes**: Checkpoint writes use atomic file operations to prevent corruption
+- **Resume from Interruption**: Seamlessly continue workflows after crashes, stops, or planned maintenance
+
+### Use Cases
+
+Long-running workflows benefit from checkpointing when:
+
+- Processing large datasets that take hours or days
+- Running on infrastructure that may experience interruptions
+- Needing to pause workflows during high-demand periods
+- Debugging or inspecting intermediate workflow state
+- Optimizing costs by pausing during expensive compute periods
+
+### Quick Example
+
+```bash
+# Start a workflow
+./workflow run --config workflow.yaml
+
+# Workflow saves checkpoints automatically...
+# Interrupt with Ctrl+C or system failure
+
+# Resume from checkpoint
+./workflow resume --checkpoint ./checkpoints/latest.json
+
+# Workflow continues from where it left off
+```
+
+### Learn More
+
+For detailed documentation on checkpoint structure, resume behavior, best practices, and atomic write patterns, see the [Checkpointing Guide](docs/checkpointing.md).
+
 ## Documentation
 
+- [Checkpointing Guide](docs/checkpointing.md): Checkpoint and resume for long-running workflows
 - [Effects Guide](docs/effects-guide.md): Comprehensive guide to effect patterns
 - [Enforcement Guide](docs/enforcement.md): Validation-based policy enforcement
 - [API Documentation](https://docs.rs/mindset): Generated API docs
