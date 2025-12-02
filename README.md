@@ -206,6 +206,26 @@ machine.transition_with_effect(State::A, State::B, |state, env| {
 
 Effects are explicit via environment parameter. Only pay for what you use.
 
+## Examples
+
+Run any example with `cargo run --example <name>`:
+
+| Example | Demonstrates |
+|---------|--------------|
+| [basic_state_machine](examples/basic_state_machine.rs) | Zero-cost state machine with pure transitions |
+| [effectful_state_machine](examples/effectful_state_machine.rs) | Environment pattern and effectful actions |
+| [validation_enforcement](examples/validation_enforcement.rs) | Enforcement rules and validation |
+| [testing_patterns](examples/testing_patterns.rs) | Testing with mock environments |
+| [traffic_light](examples/traffic_light.rs) | Simple cyclic state machine |
+| [document_workflow](examples/document_workflow.rs) | Multi-stage approval workflow |
+| [order_processing](examples/order_processing.rs) | E-commerce order lifecycle |
+| [account_management](examples/account_management.rs) | Account states with validation |
+| [checkpoint_resume](examples/checkpoint_resume.rs) | Checkpoint and resume patterns |
+| [mapreduce_workflow](examples/mapreduce_workflow.rs) | MapReduce workflow implementation |
+| [resource_management](examples/resource_management.rs) | Resource lifecycle management |
+
+See [examples/](examples/) directory for full code and [examples/README.md](examples/README.md) for detailed explanations.
+
 ## Enforcement System
 
 Mindset includes a validation-based enforcement system that ensures state transitions comply with policies and constraints. Unlike traditional fail-fast error handling, the enforcement system accumulates ALL violations and reports them together, providing comprehensive feedback in a single evaluation.
