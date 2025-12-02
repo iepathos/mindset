@@ -142,7 +142,6 @@ mod tests {
     use crate::effects::transition::{Transition, TransitionResult};
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
-    use stillwater::prelude::*;
 
     #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
     enum WorkflowState {
@@ -169,7 +168,7 @@ mod tests {
 
     #[derive(Clone)]
     struct TestEnv {
-        should_succeed: bool,
+        _should_succeed: bool,
     }
 
     #[tokio::test]
@@ -186,7 +185,7 @@ mod tests {
         machine.add_transition(transition);
 
         let env = TestEnv {
-            should_succeed: true,
+            _should_succeed: true,
         };
         let (from, result, attempt) = machine.step().run(&env).await.unwrap();
         machine.apply_result(from, result, attempt);
@@ -211,7 +210,7 @@ mod tests {
         machine.add_transition(transition);
 
         let env = TestEnv {
-            should_succeed: true,
+            _should_succeed: true,
         };
         let result = machine.step().run(&env).await;
 
@@ -240,7 +239,7 @@ mod tests {
         machine.add_transition(transition);
 
         let env = TestEnv {
-            should_succeed: false,
+            _should_succeed: false,
         };
         let (from, result, attempt) = machine.step().run(&env).await.unwrap();
 
@@ -269,7 +268,7 @@ mod tests {
             guard: None,
             action: Arc::new(|| {
                 from_fn(|env: &TestEnv| {
-                    if env.should_succeed {
+                    if env._should_succeed {
                         Ok(TransitionResult::Success(WorkflowState::Processing))
                     } else {
                         Ok(TransitionResult::Abort {
@@ -285,7 +284,7 @@ mod tests {
         machine.add_transition(transition);
 
         let env = TestEnv {
-            should_succeed: true,
+            _should_succeed: true,
         };
         let (from, result, attempt) = machine.step().run(&env).await.unwrap();
 
@@ -314,7 +313,7 @@ mod tests {
         machine.add_transition(transition);
 
         let env = TestEnv {
-            should_succeed: false,
+            _should_succeed: false,
         };
         let (from, result, attempt) = machine.step().run(&env).await.unwrap();
 
@@ -335,7 +334,6 @@ mod integration_tests {
     use crate::effects::transition::{Transition, TransitionResult};
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
-    use stillwater::prelude::*;
 
     #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
     enum WorkflowState {
@@ -360,7 +358,7 @@ mod integration_tests {
 
     #[derive(Clone)]
     struct TestEnv {
-        should_succeed: bool,
+        _should_succeed: bool,
     }
 
     #[tokio::test]
@@ -384,7 +382,7 @@ mod integration_tests {
         });
 
         let env = TestEnv {
-            should_succeed: true,
+            _should_succeed: true,
         };
 
         // First step
