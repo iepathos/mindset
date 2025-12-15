@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-12-14
+
+### Changed
+- Updated CI dependency: actions/upload-artifact from 5 to 6
+- Updated CI dependency: actions/cache from 4 to 5
+
+### Documentation
+- Added crates.io and docs.rs badges to README
+- Minor README improvements
+
 ## [0.1.0] - 2025-12-03
 
 ### Added
@@ -71,5 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Removed enforcement system from core library to maintain focus on state machine primitives
 
-[Unreleased]: https://github.com/iepathos/mindset/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/iepathos/mindset/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/iepathos/mindset/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/iepathos/mindset/releases/tag/v0.1.0
