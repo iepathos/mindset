@@ -1,10 +1,15 @@
 # Mindset
 
+[![Crates.io](https://img.shields.io/crates/v/mindset)](https://crates.io/crates/mindset)
+[![Downloads](https://img.shields.io/crates/d/mindset)](https://crates.io/crates/mindset)
+[![CI](https://github.com/iepathos/mindset/actions/workflows/ci.yml/badge.svg)](https://github.com/iepathos/mindset/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A zero-cost, effect-based state machine library for Rust.
 
 ## Overview
 
-Mindset provides a flexible and type-safe state machine implementation that separates pure guard logic from effectful actions. Built on Stillwater 0.11.0's effect system, it enables you to write state machines that are:
+Mindset provides a flexible and type-safe state machine implementation that separates pure guard logic from effectful actions. Built on Stillwater's effect system, it enables you to write state machines that are:
 
 - **Zero-cost by default**: No runtime overhead when effects aren't needed
 - **Explicitly effectful**: Side effects are opt-in and clearly marked
