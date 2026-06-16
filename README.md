@@ -1,7 +1,7 @@
 # Mindset
 
-[![Crates.io](https://img.shields.io/crates/v/mindset)](https://crates.io/crates/mindset)
-[![Downloads](https://img.shields.io/crates/d/mindset)](https://crates.io/crates/mindset)
+[![Crates.io](https://badgen.net/crates/v/mindset)](https://crates.io/crates/mindset)
+[![Downloads](https://badgen.net/crates/d/mindset)](https://crates.io/crates/mindset)
 [![CI](https://github.com/iepathos/mindset/actions/workflows/ci.yml/badge.svg)](https://github.com/iepathos/mindset/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
